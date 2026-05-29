@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Viewer</title>
+  <!--
+    Custom PDF Viewer for Gogs — Phase 3
+    Self-contained: no external CDN, no external fonts, no external scripts.
+    Entry point: viewer.html?file=<same-origin-pdf-url>
+    Security: no eval(), no new Function(), no innerHTML with PDF-derived content.
+  -->
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+
+<div id="viewer-shell">
+
+  <!-- ── Toolbar ──────────────────────────────────────────────────── -->
+  <div id="toolbar" aria-label="PDF viewer toolbar">
+
+    <!-- Navigation -->
+    <div class="toolbar-group" aria-label="Page navigation">
+      <button id="btn-prev" class="tb-btn" title="Previous page" aria-label="Previous page" disabled>&#8592;</button>
+      <input id="page-input" type="text" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Current page number">
+      <span   id="page-total" aria-live="polite">/ &ndash;</span>
+      <button id="btn-next" class="tb-btn" title="Next page" aria-label="Next page" disabled>&#8594;</button>
+    </div>
+
+    <div class="toolbar-sep" role="separator"></div>
+
+    <!-- Zoom -->
+    <div class="toolbar-group" aria-label="Zoom controls">
+      <button id="btn-zoom-out" class="tb-btn" title="Zoom out" aria-label="Zoom out">&#8722;</button>
+      <input  id="zoom-level" type="text" value="100%" readonly aria-label="Current zoom level" style="width:46px;height:30px;padding:2px 4px;background:#2a2a2a;border:1px solid #666;border-radius:3px;color:#eee;font-size:12px;text-align:center;">
+      <button id="btn-zoom-in"  class="tb-btn" title="Zoom in"  aria-label="Zoom in">&#43;</button>
+    </div>
+
+    <div class="toolbar-sep" role="separator"></div>
+
+    <!-- Download -->
+    <div class="toolbar-group">
+      <button id="btn-download" class="tb-btn" title="Download PDF" aria-label="Download PDF">&#8595; Download</button>
+    </div>
+
+  </div>
+  <!-- /toolbar -->
+
+  <!-- ── Canvas container ─────────────────────────────────────────── -->
+  <div id="canvas-container" role="main" aria-label="PDF page display">
+    <div id="canvas-wrapper">
+      <canvas id="pdf-canvas" role="img" aria-label="PDF page content"></canvas>
+      <div id="link-layer" aria-label="PDF link annotations" role="region"></div>
+    </div>
+  </div>
+
+  <!-- ── Loading overlay ──────────────────────────────────────────── -->
+  <div id="loading-overlay" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <div id="loading-text">Loading&hellip;</div>
+  </div>
+
+  <!-- ── Error display ────────────────────────────────────────────── -->
+  <div id="error-display" class="hidden" role="alert" aria-live="assertive">
+    <div id="error-icon" aria-hidden="true">&#9888;</div>
+    <!-- SECURITY: error text is always set via textContent in viewer.js,
+         never via innerHTML. These elements start empty. -->
+    <div id="error-message"></div>
+    <div id="error-sub"></div>
+  </div>
+
+</div><!-- /viewer-shell -->
+
+<!--
+  Script load order is mandatory — each module depends on the prior one.
+  All paths are relative so they work at any AppSubURL depth.
+  No external URLs. No CDN. No eval(). No new Function().
+-->
+<script src="../src/pdf-fonts.js"></script>
+<script src="../src/pdf-images.js"></script>
+<script src="../src/pdf-security.js"></script>
+<script src="../src/pdf-parser.js"></script>
+<script src="../src/pdf-renderer.js"></script>
+<script src="viewer.js"></script>
+
+</body>
+</html>
