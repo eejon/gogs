@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Viewer</title>
+  <!-- No external dependencies. All assets are local. -->
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <!-- Page navigation -->
+    <button id="btnPrev" title="Previous Page" disabled>&#9664;</button>
+    <input id="pageNumber" type="text" value="1" size="3" title="Page Number">
+    <span id="pageCount">of 0</span>
+    <button id="btnNext" title="Next Page" disabled>&#9654;</button>
+
+    <div class="toolbar-separator"></div>
+
+    <!-- Zoom controls -->
+    <button id="btnZoomOut" title="Zoom Out" disabled>&minus;</button>
+    <span id="zoomLevel">100%</span>
+    <button id="btnZoomIn" title="Zoom In" disabled>+</button>
+    <button id="btnFitWidth" title="Fit Width" disabled>&#8596;</button>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div id="loadingMessage">Loading PDF...</div>
+  </div>
+
+  <!-- Error overlay -->
+  <div id="errorOverlay" class="hidden">
+    <div class="error-icon">!</div>
+    <div id="errorTitle">Error</div>
+    <div id="errorDetail"></div>
+  </div>
+
+  <!-- Canvas container -->
+  <div id="viewerContainer">
+    <div id="canvasWrapper">
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+  </div>
+
+  <!--
+    Script loading order:
+    1. pdf-fonts.js    - Font handling (encoding tables, width data, CSS mappings)
+    2. pdf-images.js   - Image rendering (JPEG passthrough, pixel reconstruction)
+    3. pdf-security.js - Security filter (sanitizeObject, sanitizeCatalog, validateURL)
+    4. pdf-parser.js   - PDF binary parser (PDFParser, ParseError)
+    5. pdf-renderer.js - Content stream interpreter and canvas renderer (PDFRenderer)
+    6. viewer.js       - This viewer's application logic
+  -->
+  <script src="../src/pdf-fonts.js"></script>
+  <script src="../src/pdf-images.js"></script>
+  <script src="../src/pdf-security.js"></script>
+  <script src="../src/pdf-parser.js"></script>
+  <script src="../src/pdf-renderer.js"></script>
+  <script src="viewer.js"></script>
+
+</body>
+</html>

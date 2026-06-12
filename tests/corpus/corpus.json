@@ -1,0 +1,83 @@
+{
+  "corpus": [
+    {
+      "file": "text-only.pdf",
+      "page_count": 3,
+      "has_text": true,
+      "has_images": false,
+      "has_javascript": false,
+      "expected_error": null,
+      "annotations": {
+        "has_uri_links": false,
+        "has_javascript_links": false,
+        "auto_follow_on_load": false
+      }
+    },
+    {
+      "file": "images.pdf",
+      "page_count": 1,
+      "has_text": false,
+      "has_images": true,
+      "has_javascript": false,
+      "expected_error": null,
+      "annotations": {
+        "has_uri_links": false,
+        "has_javascript_links": false,
+        "auto_follow_on_load": false
+      }
+    },
+    {
+      "file": "mixed.pdf",
+      "page_count": 1,
+      "has_text": true,
+      "has_images": true,
+      "has_javascript": false,
+      "expected_error": null,
+      "annotations": {
+        "has_uri_links": false,
+        "has_javascript_links": false,
+        "auto_follow_on_load": false
+      }
+    },
+    {
+      "file": "links.pdf",
+      "page_count": 1,
+      "has_text": true,
+      "has_images": false,
+      "has_javascript": false,
+      "expected_error": null,
+      "annotations": {
+        "has_uri_links": true,
+        "has_javascript_links": false,
+        "auto_follow_on_load": false
+      }
+    },
+    {
+      "file": "poc.pdf",
+      "page_count": 1,
+      "has_text": true,
+      "has_images": false,
+      "has_javascript": true,
+      "expected_post_sanitize_javascript": false,
+      "expected_error": null,
+      "annotations": {
+        "has_uri_links": false,
+        "has_javascript_links": false,
+        "auto_follow_on_load": false
+      }
+    },
+    {
+      "file": "malformed.pdf",
+      "page_count": null,
+      "has_text": null,
+      "has_images": null,
+      "has_javascript": null,
+      "expected_error": "ParseError",
+      "annotations": {
+        "has_uri_links": null,
+        "has_javascript_links": null,
+        "auto_follow_on_load": null
+      }
+    }
+  ]
+}

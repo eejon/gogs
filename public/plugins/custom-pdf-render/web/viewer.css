@@ -1,0 +1,236 @@
+/* viewer.css -- PDF Viewer styles for custom-pdf-render
+ * Minimal, clean design for iframe embedding (width:100%, height:600px)
+ * No external dependencies.
+ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background: #e8e8e8;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+
+#toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  background: #474747;
+  color: #d9d9d9;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #5a5a5a;
+  border-radius: 3px;
+  background: #5c5c5c;
+  color: #d9d9d9;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#toolbar button:hover {
+  background: #6e6e6e;
+  border-color: #7a7a7a;
+}
+
+#toolbar button:active {
+  background: #4a4a4a;
+}
+
+#toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+#toolbar button:disabled:hover {
+  background: #5c5c5c;
+  border-color: #5a5a5a;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: #5a5a5a;
+  margin: 0 4px;
+}
+
+/* Page controls */
+#pageNumber {
+  width: 42px;
+  height: 26px;
+  padding: 0 4px;
+  border: 1px solid #5a5a5a;
+  border-radius: 3px;
+  background: #3e3e3e;
+  color: #d9d9d9;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+
+#pageNumber:focus {
+  border-color: #8ab4f8;
+}
+
+#pageCount {
+  font-size: 13px;
+  color: #b0b0b0;
+  white-space: nowrap;
+}
+
+/* Zoom controls */
+#zoomLevel {
+  font-size: 13px;
+  color: #b0b0b0;
+  min-width: 48px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ── Canvas container ────────────────────────────────────────────────────── */
+
+#viewerContainer {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 40px);
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+  background: #e8e8e8;
+}
+
+#canvasWrapper {
+  position: relative;
+  display: inline-block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #fff;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+#pdfCanvas {
+  display: block;
+}
+
+/* Link annotation overlays */
+.link-annotation {
+  position: absolute;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  display: block;
+}
+
+.link-annotation:hover {
+  background: rgba(255, 255, 100, 0.2);
+  border: 1px solid rgba(255, 255, 100, 0.5);
+}
+
+/* ── Loading indicator ───────────────────────────────────────────────────── */
+
+#loadingOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(232, 232, 232, 0.95);
+  z-index: 100;
+}
+
+#loadingOverlay.hidden {
+  display: none;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #ccc;
+  border-top-color: #474747;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+#loadingMessage {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* ── Error display ───────────────────────────────────────────────────────── */
+
+#errorOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(232, 232, 232, 0.98);
+  z-index: 200;
+  padding: 20px;
+}
+
+#errorOverlay.hidden {
+  display: none;
+}
+
+.error-icon {
+  font-size: 48px;
+  color: #c0392b;
+  margin-bottom: 16px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+#errorTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+#errorDetail {
+  font-size: 13px;
+  color: #777;
+  text-align: center;
+  max-width: 480px;
+  word-break: break-word;
+}
