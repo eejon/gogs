@@ -1,0 +1,153 @@
+{
+  "name": "pdf-metric-batch",
+  "version": "1.0.0",
+  "description": "Targeted PDF fixtures mapped to pdf-functional-test-metric rows.",
+  "files": [
+    {
+      "file": "m01-basic-text.pdf",
+      "targets": [
+        "P03",
+        "P04",
+        "P06",
+        "R01",
+        "R02"
+      ],
+      "expectation": "renders readable text with standard font"
+    },
+    {
+      "file": "m02-text-transform-spacing.pdf",
+      "targets": [
+        "R03",
+        "R04"
+      ],
+      "expectation": "text transforms and line stepping are applied correctly"
+    },
+    {
+      "file": "m03-path-clip-color.pdf",
+      "targets": [
+        "R05"
+      ],
+      "expectation": "clip path and fill colors are respected"
+    },
+    {
+      "file": "m04-jpeg-xobject.pdf",
+      "targets": [
+        "R06"
+      ],
+      "expectation": "JPEG image XObject is decoded and drawn"
+    },
+    {
+      "file": "m05-inline-image.pdf",
+      "targets": [
+        "R11"
+      ],
+      "expectation": "inline BI/ID/EI image renders"
+    },
+    {
+      "file": "m06-flate-predictor12.pdf",
+      "targets": [
+        "P08",
+        "R07"
+      ],
+      "expectation": "Flate image decode with Predictor=12 works"
+    },
+    {
+      "file": "m07-bpc1-image.pdf",
+      "targets": [
+        "R08"
+      ],
+      "expectation": "1bpc image is decoded into visible pattern"
+    },
+    {
+      "file": "m08-colorspaces-cmyk-rgb-gray.pdf",
+      "targets": [
+        "R09"
+      ],
+      "expectation": "DeviceCMYK/DeviceRGB/DeviceGray rendering is plausible"
+    },
+    {
+      "file": "m09-asciihex-content.pdf",
+      "targets": [
+        "P09"
+      ],
+      "expectation": "ASCIIHexDecode content stream is decoded"
+    },
+    {
+      "file": "m10-ascii85-content.pdf",
+      "targets": [
+        "P09"
+      ],
+      "expectation": "ASCII85Decode content stream is decoded"
+    },
+    {
+      "file": "m11-extgstate-alpha.pdf",
+      "targets": [
+        "R12"
+      ],
+      "expectation": "ExtGState alpha compositing is visible"
+    },
+    {
+      "file": "m12-shading-axial.pdf",
+      "targets": [
+        "R13"
+      ],
+      "expectation": "axial shading or safe fallback is handled"
+    },
+    {
+      "file": "m13-links-safe-uri.pdf",
+      "targets": [
+        "V04",
+        "S02"
+      ],
+      "expectation": "safe HTTPS link is preserved with safe attributes"
+    },
+    {
+      "file": "m14-links-javascript-uri.pdf",
+      "targets": [
+        "S02"
+      ],
+      "expectation": "javascript: URI is blocked/removed"
+    },
+    {
+      "file": "m15-openaction-javascript.pdf",
+      "targets": [
+        "S01"
+      ],
+      "expectation": "OpenAction JavaScript is stripped and never executed"
+    },
+    {
+      "file": "m16-launch-action.pdf",
+      "targets": [
+        "S03"
+      ],
+      "expectation": "/Launch action is blocked/removed"
+    },
+    {
+      "file": "m17-multipage-inherit.pdf",
+      "targets": [
+        "P10",
+        "V01"
+      ],
+      "expectation": "2 pages render and inherited resources resolve"
+    },
+    {
+      "file": "m18-xref-stream.pdf",
+      "targets": [
+        "P05"
+      ],
+      "expectation": "parser resolves xref stream file"
+    },
+    {
+      "file": "m19-malformed-truncated.pdf",
+      "targets": [
+        "S04",
+        "S05"
+      ],
+      "expectation": "graceful failure without crash/hang"
+    }
+  ],
+  "notes": [
+    "P01/P02/V02/V03/V05/S06 are viewer/runtime behaviors and must be validated by harness checks in addition to file fixtures.",
+    "R10 (ImageMask + SMask) is not isolated in this first batch and should be added as a second-pass fixture if needed."
+  ]
+}
