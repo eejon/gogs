@@ -1,0 +1,419 @@
+/**
+ * PDF Viewer Styles
+ *
+ * Designed to work within a width="100%" height="600px" iframe
+ * as embedded in Gogs' repository file view.
+ */
+
+/* Reset and base */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background-color: #808080;
+}
+
+/* ============================================================================
+   Toolbar
+   ============================================================================ */
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 8px;
+  background-color: #474747;
+  color: #d9d9d9;
+  border-bottom: 1px solid #333;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+  z-index: 10;
+  position: relative;
+}
+
+.pdf-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Toolbar buttons */
+.pdf-toolbar button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: #d9d9d9;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+}
+
+.pdf-toolbar button:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.pdf-toolbar button:active {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.pdf-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pdf-toolbar button:disabled:hover {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+/* Page input */
+.pdf-page-input {
+  width: 40px;
+  height: 24px;
+  text-align: center;
+  font-size: 13px;
+  border: 1px solid #666;
+  border-radius: 2px;
+  background: #3a3a3a;
+  color: #d9d9d9;
+  padding: 0 2px;
+  outline: none;
+}
+
+.pdf-page-input:focus {
+  border-color: #0a84ff;
+}
+
+.pdf-page-label {
+  font-size: 13px;
+  color: #999;
+  white-space: nowrap;
+}
+
+/* Zoom select */
+.pdf-zoom-select {
+  height: 24px;
+  font-size: 12px;
+  border: 1px solid #666;
+  border-radius: 2px;
+  background: #3a3a3a;
+  color: #d9d9d9;
+  padding: 0 4px;
+  outline: none;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.pdf-zoom-select:focus {
+  border-color: #0a84ff;
+}
+
+/* Separator */
+.pdf-toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
+}
+
+/* ============================================================================
+   Viewer Container
+   ============================================================================ */
+
+.pdf-viewer-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.pdf-viewer-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  background-color: #808080;
+}
+
+.pdf-page-container {
+  position: relative;
+  margin: 10px auto;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-page-canvas {
+  display: block;
+}
+
+/* ============================================================================
+   Annotation Overlay
+   ============================================================================ */
+
+.pdf-annotation-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+.pdf-link-annotation {
+  display: block;
+  text-decoration: none;
+  border: none;
+  outline: none;
+}
+
+.pdf-link-annotation:hover {
+  background-color: rgba(255, 255, 0, 0.15);
+  border: 1px solid rgba(255, 255, 0, 0.3);
+  border-radius: 1px;
+  /* Adjust for border */
+  margin: -1px;
+}
+
+/* ============================================================================
+   Loading Indicator
+   ============================================================================ */
+
+.pdf-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #808080;
+  z-index: 5;
+}
+
+.pdf-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: pdf-spin 0.8s linear infinite;
+}
+
+@keyframes pdf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pdf-loading-text {
+  margin-top: 12px;
+  color: #d9d9d9;
+  font-size: 14px;
+}
+
+.pdf-loading.hidden {
+  display: none;
+}
+
+/* ============================================================================
+   Loading Bar (in toolbar area)
+   ============================================================================ */
+
+.pdf-loading-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: rgba(0, 0, 0, 0.2);
+  z-index: 11;
+}
+
+.pdf-loading-bar-progress {
+  height: 100%;
+  width: 0%;
+  background-color: #0a84ff;
+  transition: width 0.2s ease;
+}
+
+.pdf-loading-bar.hidden {
+  display: none;
+}
+
+/* ============================================================================
+   Error Display
+   ============================================================================ */
+
+.pdf-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #808080;
+  z-index: 6;
+  padding: 20px;
+}
+
+.pdf-error.hidden {
+  display: none;
+}
+
+.pdf-error-box {
+  max-width: 500px;
+  width: 100%;
+  background-color: #474747;
+  border-radius: 4px;
+  padding: 20px;
+  color: #d9d9d9;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-error-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #ff6b6b;
+}
+
+.pdf-error-message {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+.pdf-error-details-toggle {
+  font-size: 12px;
+  color: #0a84ff;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  margin-bottom: 8px;
+}
+
+.pdf-error-details-toggle:hover {
+  color: #4da6ff;
+}
+
+.pdf-error-details {
+  display: none;
+  font-size: 11px;
+  font-family: monospace;
+  background: #2a2a2a;
+  border-radius: 2px;
+  padding: 10px;
+  max-height: 150px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #aaa;
+}
+
+.pdf-error-details.visible {
+  display: block;
+}
+
+/* ============================================================================
+   Scroll-based multi-page layout
+   ============================================================================ */
+
+.pdf-pages-container {
+  padding: 10px 0;
+}
+
+.pdf-page-wrapper {
+  position: relative;
+  margin: 10px auto;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-page-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+  background-color: #f0f0f0;
+}
+
+/* ============================================================================
+   Responsive adjustments for narrow iframes
+   ============================================================================ */
+
+@media (max-width: 500px) {
+  .pdf-toolbar-center {
+    position: static;
+    transform: none;
+  }
+
+  .pdf-toolbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 4px 6px;
+    gap: 4px;
+  }
+
+  .pdf-zoom-select {
+    min-width: 60px;
+  }
+}
+
+/* ============================================================================
+   Print support (basic)
+   ============================================================================ */
+
+@media print {
+  .pdf-toolbar {
+    display: none;
+  }
+
+  .pdf-loading, .pdf-error {
+    display: none;
+  }
+
+  .pdf-viewer-container {
+    overflow: visible;
+    background-color: #fff;
+  }
+
+  .pdf-page-wrapper {
+    box-shadow: none;
+    margin: 0;
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "corpus": [
+    {
+      "id": "1&5-arXiv-Latex",
+      "file": "1&5-arXiv-Latex.pdf",
+      "producer": "pdflatex + tikz",
+      "description": "arXiv paper with LaTeX Type1 subsets and TikZ diagrams",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "type1Fonts": true,
+        "tikzGraphics": true,
+        "customEncodings": true,
+        "differences": true,
+        "flateStreams": true,
+        "hasLinks": false
+      },
+      "xrefType": "traditional_or_stream"
+    },
+    {
+      "id": "2-lualatex",
+      "file": "2-lualatex.pdf",
+      "producer": "LuaLaTeX",
+      "description": "LuaLaTeX document with CIDFont Type2, Identity-H encoding",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "cidFonts": true,
+        "identityH": true,
+        "wWidthArrays": true,
+        "flateStreams": true,
+        "hasLinks": false
+      },
+      "xrefType": "stream"
+    },
+    {
+      "id": "3-word-docx",
+      "file": "3-word-docx.pdf",
+      "producer": "Microsoft Word",
+      "description": "Word document exported as PDF with TrueType subsets",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "truetypeFonts": true,
+        "winAnsiEncoding": true,
+        "simpleWidths": true,
+        "flateStreams": true,
+        "hasLinks": false
+      },
+      "xrefType": "traditional_or_stream"
+    },
+    {
+      "id": "4-google-doc",
+      "file": "4-google-doc.pdf",
+      "producer": "Google Docs",
+      "description": "Google Docs PDF export",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "flateStreams": true,
+        "hasLinks": false
+      },
+      "xrefType": "traditional_or_stream"
+    },
+    {
+      "id": "7-matplotlib-charts",
+      "file": "7-matplotlib-charts.pdf",
+      "producer": "matplotlib",
+      "description": "Matplotlib chart output with paths and text labels",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "pathOperators": true,
+        "rotatedText": true,
+        "type3Fonts": false,
+        "flateStreams": true,
+        "hasLinks": false
+      },
+      "xrefType": "traditional_or_stream"
+    },
+    {
+      "id": "8-scanned",
+      "file": "8-scanned.pdf",
+      "producer": "Scanner/OCR",
+      "description": "Scanned document (JPEG or CCITT images)",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "images": true,
+        "dctDecode": true,
+        "flateStreams": true,
+        "hasLinks": false
+      },
+      "xrefType": "traditional_or_stream"
+    },
+    {
+      "id": "9-browser-print",
+      "file": "9-browser-print.pdf",
+      "producer": "Browser print-to-PDF",
+      "description": "Chrome/Firefox Print to PDF output",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "images": true,
+        "fragmentedText": true,
+        "flateStreams": true,
+        "hasLinks": false
+      },
+      "xrefType": "traditional_or_stream"
+    },
+    {
+      "id": "links",
+      "file": "links.pdf",
+      "producer": "various",
+      "description": "PDF with link annotations for testing annotation handling",
+      "expectedPages": null,
+      "minPages": 1,
+      "features": {
+        "linkAnnotations": true,
+        "uriActions": true,
+        "hasLinks": true,
+        "flateStreams": true
+      },
+      "xrefType": "traditional_or_stream"
+    }
+  ]
+}

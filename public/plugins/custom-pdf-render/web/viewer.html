@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>PDF Viewer</title>
+
+    <link rel="stylesheet" href="viewer.css">
+
+    <!-- PDF library modules (dependency order) -->
+    <script src="../lib/pdf-stream.js"></script>
+    <script src="../lib/pdf-security.js"></script>
+    <script src="../lib/pdf-parser.js"></script>
+    <script src="../lib/pdf-fonts.js"></script>
+    <script src="../lib/pdf-renderer.js"></script>
+    <script src="../lib/pdf-images.js"></script>
+    <script src="../lib/pdf-shading.js"></script>
+    <script src="../lib/pdf-annotations.js"></script>
+
+    <!-- Viewer entry point -->
+    <script src="viewer.js"></script>
+  </head>
+
+  <body>
+    <div id="pdf-viewer-wrapper" class="pdf-viewer-wrapper">
+
+      <!-- Toolbar -->
+      <div id="pdf-toolbar" class="pdf-toolbar">
+        <div class="pdf-toolbar-group">
+          <button id="pdf-prev" title="Previous Page" disabled>&#9664;</button>
+          <button id="pdf-next" title="Next Page" disabled>&#9654;</button>
+          <input type="number" id="pdf-page-input" class="pdf-page-input"
+                 value="1" min="1" title="Page Number">
+          <span id="pdf-page-total" class="pdf-page-label">of 0</span>
+        </div>
+
+        <div class="pdf-toolbar-center">
+          <button id="pdf-zoom-out" title="Zoom Out">&#8722;</button>
+          <select id="pdf-zoom-select" class="pdf-zoom-select" title="Zoom Level">
+            <option value="fit-width" selected>Fit Width</option>
+            <option value="fit-page">Fit Page</option>
+            <option value="custom" hidden></option>
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
+            <option value="3">300%</option>
+            <option value="4">400%</option>
+          </select>
+          <button id="pdf-zoom-in" title="Zoom In">+</button>
+        </div>
+
+        <div class="pdf-toolbar-group">
+          <!-- Right side intentionally left minimal for clean look -->
+        </div>
+
+        <!-- Loading bar (shown during fetch/parse) -->
+        <div id="pdf-loading-bar" class="pdf-loading-bar hidden">
+          <div id="pdf-loading-bar-progress" class="pdf-loading-bar-progress"></div>
+        </div>
+      </div>
+
+      <!-- Viewer content area -->
+      <div id="pdf-viewer-container" class="pdf-viewer-container">
+
+        <!-- Loading overlay -->
+        <div id="pdf-loading" class="pdf-loading">
+          <div class="pdf-loading-spinner"></div>
+          <div id="pdf-loading-text" class="pdf-loading-text">Loading PDF...</div>
+        </div>
+
+        <!-- Error overlay -->
+        <div id="pdf-error" class="pdf-error hidden">
+          <div class="pdf-error-box">
+            <div class="pdf-error-title">Unable to display PDF</div>
+            <div id="pdf-error-message" class="pdf-error-message"></div>
+            <button id="pdf-error-details-toggle" class="pdf-error-details-toggle">Show Details</button>
+            <div id="pdf-error-details" class="pdf-error-details"></div>
+          </div>
+        </div>
+
+        <!-- Pages container (scroll target) -->
+        <div id="pdf-pages-container" class="pdf-pages-container"></div>
+
+      </div>
+
+    </div>
+  </body>
+</html>
