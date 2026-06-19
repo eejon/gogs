@@ -135,6 +135,9 @@ function GraphicsState() {
   // Blend mode
   this.blendMode = 'Normal';
 
+  // Active soft mask (SMask from ExtGState)
+  this.activeSMask = null;
+
   // Clipping - tracked but applied via canvas clip
   this.hasClip = false;
   this.clipRule = 'nonzero'; // 'nonzero' or 'evenodd'
@@ -169,6 +172,7 @@ GraphicsState.prototype.clone = function() {
   gs.fillAlpha = this.fillAlpha;
   gs.strokeAlpha = this.strokeAlpha;
   gs.blendMode = this.blendMode;
+  gs.activeSMask = this.activeSMask;
   gs.hasClip = false;       // Clip is not inherited in the cloned state
   gs.clipRule = 'nonzero';
   return gs;
@@ -1036,10 +1040,22 @@ function executeOperators(ctx, ops, state, stateStack, resources, doc, formDepth
   var fontCache = {};
   var needsNewPath = true;
 
+  var _trace = (typeof window !== 'undefined' && window._traceOps);
+  var _traceLog = _trace ? [] : null;
+
   for (var i = 0; i < ops.length; i++) {
     var entry = ops[i];
     var op = entry.op;
     var args = entry.args;
+
+    if (_trace && (op === 'q' || op === 'Q' || op === 'gs' || op === 'S' || op === 'f' || op === 'F' || op === 'f*' || op === 'B' || op === 'B*' || op === 'n' || op === 'Do')) {
+      var info = op;
+      if (op === 'gs') info += ' ' + args[0];
+      if (op === 'S' || op === 'f' || op === 'F') info += ' sA=' + state.strokeAlpha.toFixed(3) + ' fA=' + state.fillAlpha.toFixed(3);
+      if (op === 'Do') info += ' ' + args[0];
+      _traceLog.push(info);
+      if (_traceLog.length >= 500) { console.log('[TRACE depth=' + formDepth + '] ' + _traceLog.join(' | ')); _traceLog = []; }
+    }
 
     switch (op) {
       // ---- Graphics State Operators ----
@@ -1053,7 +1069,11 @@ function executeOperators(ctx, ops, state, stateStack, resources, doc, formDepth
 
       case 'Q': // Restore graphics state
         if (stateStack.length > 0) {
+          var prevAlpha = state.strokeAlpha;
           state = stateStack.pop();
+          if (window._dbgGS && prevAlpha < 0.99 && state.strokeAlpha > 0.99) {
+            console.log('[Q] alpha restored from ' + prevAlpha.toFixed(4) + ' to ' + state.strokeAlpha.toFixed(4));
+          }
           ctx.restore();
         }
         break;
@@ -1172,6 +1192,9 @@ function executeOperators(ctx, ops, state, stateStack, resources, doc, formDepth
       // ---- Path Painting Operators ----
       case 'S': // Stroke
         applyStrokeStyle(ctx, state);
+        if (window._dbgGS && window._dbgStroke && window._dbgStroke-- > 0) {
+          console.log('[S] lw=' + state.lineWidth + ' strokeA=' + state.strokeAlpha.toFixed(4) + ' fillA=' + state.fillAlpha.toFixed(4) + ' color=' + state.strokeColor);
+        }
         ctx.stroke();
         if (state.hasClip) {
           applyClip(ctx, state);
@@ -1192,6 +1215,9 @@ function executeOperators(ctx, ops, state, stateStack, resources, doc, formDepth
       case 'f': // Fill (nonzero winding)
       case 'F': // Fill (same as f, PDF 1.0 compatibility)
         applyFillStyle(ctx, state);
+        if (window._dbgGS && window._dbgStroke && window._dbgStroke-- > 0) {
+          console.log('[f] fillA=' + state.fillAlpha.toFixed(4) + ' color=' + state.fillColor);
+        }
         ctx.fill('nonzero');
         if (state.hasClip) {
           applyClip(ctx, state);
@@ -1549,6 +1575,9 @@ function executeOperators(ctx, ops, state, stateStack, resources, doc, formDepth
     }
   }
 
+  if (_trace && _traceLog && _traceLog.length > 0) {
+    console.log('[TRACE depth=' + formDepth + '] ' + _traceLog.join(' | '));
+  }
   return state;
 }
 
@@ -1645,6 +1674,7 @@ function applyExtGState(ctx, state, gsName, resources, doc) {
   if (typeof gs.CA === 'number') {
     state.strokeAlpha = clamp(gs.CA, 0, 1);
   }
+  // debug removed
   // Line width
   if (typeof gs.LW === 'number') {
     state.lineWidth = gs.LW;
@@ -1680,21 +1710,16 @@ function applyExtGState(ctx, state, gsName, resources, doc) {
     }
   }
   // Soft mask from ExtGState (/SMask)
-  // When SMask is 'None', clear any existing soft mask effect
-  // When SMask is a dictionary, it defines a transparency group for alpha masking
   if (gs.SMask !== undefined) {
     var smaskVal = gs.SMask;
     if (smaskVal && typeof smaskVal === 'object' && smaskVal.isRef && doc) {
       smaskVal = doc.resolveRef(smaskVal);
     }
     if (smaskVal === 'None' || smaskVal === '/None') {
-      // Reset to full opacity (no soft mask)
-      // The canvas does not directly support soft mask groups,
-      // so we just ensure alpha is at full
+      state.activeSMask = null;
+    } else if (smaskVal && typeof smaskVal === 'object') {
+      state.activeSMask = smaskVal;
     }
-    // For a soft mask dictionary, canvas API does not directly support
-    // transparency groups. We acknowledge this limitation and skip.
-    // The per-image SMask is handled in pdf-images.js.
   }
   // Font
   if (Array.isArray(gs.Font) && gs.Font.length >= 2) {
@@ -1945,6 +1970,12 @@ function renderFormXObject(ctx, state, stateStack, formObj, parentResources, doc
 
   if (!formObj._isStream) return;
 
+  // Check if we should use SMask-based offscreen rendering
+  if (state.activeSMask && typeof document !== 'undefined') {
+    renderFormWithSMask(ctx, state, stateStack, formObj, parentResources, doc, formDepth);
+    return;
+  }
+
   // Save graphics state
   stateStack.push(state.clone());
   ctx.save();
@@ -1975,7 +2006,6 @@ function renderFormXObject(ctx, state, stateStack, formObj, parentResources, doc
   if (formResources && typeof formResources === 'object' && formResources.isRef && doc) {
     formResources = doc.resolveRef(formResources);
   }
-  // Merge with parent resources as fallback
   var effectiveResources = mergeResources(formResources, parentResources);
 
   // Decode and tokenize the Form's content stream
@@ -2016,6 +2046,187 @@ function renderFormXObject(ctx, state, stateStack, formObj, parentResources, doc
   }
 
   // Restore graphics state
+  ctx.restore();
+  state = stateStack.pop();
+}
+
+function renderFormWithSMask(ctx, state, stateStack, formObj, parentResources, doc, formDepth) {
+  stateStack.push(state.clone());
+  ctx.save();
+
+  var smask = state.activeSMask;
+  var canvasW = ctx.canvas.width;
+  var canvasH = ctx.canvas.height;
+
+  // Resolve the SMask /G group (Form XObject for the mask)
+  var maskGroup = smask.G;
+  if (maskGroup && typeof maskGroup === 'object' && maskGroup.isRef && doc) {
+    maskGroup = doc.resolveRef(maskGroup);
+  }
+
+  var isLuminosity = true;
+  var subtype = smask.S;
+  if (subtype && typeof subtype === 'object' && subtype.isRef && doc) {
+    subtype = doc.resolveRef(subtype);
+  }
+  if (subtype === 'Alpha' || subtype === '/Alpha') {
+    isLuminosity = false;
+  }
+
+  // --- Render the content form to an offscreen canvas ---
+  var contentCanvas = document.createElement('canvas');
+  contentCanvas.width = canvasW;
+  contentCanvas.height = canvasH;
+  var contentCtx = contentCanvas.getContext('2d');
+
+  // Copy the current transform from the main canvas
+  var curTransform = ctx.getTransform();
+  contentCtx.setTransform(curTransform);
+
+  // Apply Form matrix
+  var matrix = formObj.Matrix;
+  if (matrix && typeof matrix === 'object' && matrix.isRef && doc) {
+    matrix = doc.resolveRef(matrix);
+  }
+  if (Array.isArray(matrix) && matrix.length >= 6) {
+    contentCtx.transform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
+  }
+
+  // Apply BBox clipping
+  var bbox = formObj.BBox;
+  if (bbox && typeof bbox === 'object' && bbox.isRef && doc) {
+    bbox = doc.resolveRef(bbox);
+  }
+  if (Array.isArray(bbox) && bbox.length >= 4) {
+    contentCtx.beginPath();
+    contentCtx.rect(bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]);
+    contentCtx.clip();
+  }
+
+  var formResources = formObj.Resources;
+  if (formResources && typeof formResources === 'object' && formResources.isRef && doc) {
+    formResources = doc.resolveRef(formResources);
+  }
+  var effectiveResources = mergeResources(formResources, parentResources);
+
+  var contentData;
+  try { contentData = doc.getStreamData(formObj); } catch (e) {
+    ctx.restore(); state = stateStack.pop(); return;
+  }
+  var ops;
+  try { ops = tokenizeContentStream(contentData); } catch (e) {
+    ctx.restore(); state = stateStack.pop(); return;
+  }
+
+  // Render content at full opacity — SMask controls the final alpha
+  var contentState = new GraphicsState();
+  contentState.fillColor = state.fillColor;
+  contentState.strokeColor = state.strokeColor;
+  contentState.fillAlpha = 1.0;
+  contentState.strokeAlpha = 1.0;
+  contentState.font = state.font;
+  contentState.fontSize = state.fontSize;
+  contentState.activeSMask = null;
+  var contentStack = [];
+
+  try {
+    executeOperators(contentCtx, ops, contentState, contentStack, effectiveResources, doc, formDepth + 1);
+  } catch (e) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('SMask content render error: ' + e.message);
+    }
+  }
+
+  // --- Render the mask group to another offscreen canvas ---
+  if (maskGroup && maskGroup._isStream) {
+    var maskCanvas = document.createElement('canvas');
+    maskCanvas.width = canvasW;
+    maskCanvas.height = canvasH;
+    var maskCtx = maskCanvas.getContext('2d');
+
+    // White background for luminosity masks (luminosity of white = 1.0 = fully opaque)
+    if (isLuminosity) {
+      maskCtx.fillStyle = 'rgb(0,0,0)';
+      maskCtx.fillRect(0, 0, canvasW, canvasH);
+    }
+
+    maskCtx.setTransform(curTransform);
+
+    // Apply mask group's own matrix
+    var maskMatrix = maskGroup.Matrix;
+    if (maskMatrix && typeof maskMatrix === 'object' && maskMatrix.isRef && doc) {
+      maskMatrix = doc.resolveRef(maskMatrix);
+    }
+    if (Array.isArray(maskMatrix) && maskMatrix.length >= 6) {
+      maskCtx.transform(maskMatrix[0], maskMatrix[1], maskMatrix[2], maskMatrix[3], maskMatrix[4], maskMatrix[5]);
+    }
+
+    // Apply mask BBox clipping
+    var maskBBox = maskGroup.BBox;
+    if (maskBBox && typeof maskBBox === 'object' && maskBBox.isRef && doc) {
+      maskBBox = doc.resolveRef(maskBBox);
+    }
+    if (Array.isArray(maskBBox) && maskBBox.length >= 4) {
+      maskCtx.beginPath();
+      maskCtx.rect(maskBBox[0], maskBBox[1], maskBBox[2] - maskBBox[0], maskBBox[3] - maskBBox[1]);
+      maskCtx.clip();
+    }
+
+    // Resolve mask group resources
+    var maskResources = maskGroup.Resources;
+    if (maskResources && typeof maskResources === 'object' && maskResources.isRef && doc) {
+      maskResources = doc.resolveRef(maskResources);
+    }
+    var effectiveMaskResources = mergeResources(maskResources, parentResources);
+
+    var maskData;
+    try { maskData = doc.getStreamData(maskGroup); } catch (e) { maskData = null; }
+    var maskOps;
+    if (maskData) {
+      try { maskOps = tokenizeContentStream(maskData); } catch (e) { maskOps = null; }
+    }
+
+    if (maskOps) {
+      var maskState = new GraphicsState();
+      maskState.activeSMask = null;
+      var maskStack = [];
+      try {
+        executeOperators(maskCtx, maskOps, maskState, maskStack, effectiveMaskResources, doc, formDepth + 1);
+      } catch (e) {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('SMask group render error: ' + e.message);
+        }
+      }
+    }
+
+    // --- Apply mask to content pixel by pixel ---
+    var contentImgData = contentCtx.getImageData(0, 0, canvasW, canvasH);
+    var maskImgData = maskCtx.getImageData(0, 0, canvasW, canvasH);
+    var cPix = contentImgData.data;
+    var mPix = maskImgData.data;
+
+    for (var p = 0; p < cPix.length; p += 4) {
+      var maskAlpha;
+      if (isLuminosity) {
+        // Luminosity = 0.2126R + 0.7152G + 0.0722B (standard sRGB luminance)
+        maskAlpha = (0.2126 * mPix[p] + 0.7152 * mPix[p + 1] + 0.0722 * mPix[p + 2]) / 255;
+      } else {
+        // Alpha mode: use the mask's alpha channel directly
+        maskAlpha = mPix[p + 3] / 255;
+      }
+      cPix[p + 3] = Math.round(cPix[p + 3] * maskAlpha);
+    }
+
+    contentCtx.putImageData(contentImgData, 0, 0);
+  }
+
+  // --- Composite the masked content onto the main canvas ---
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1.0;
+  ctx.drawImage(contentCanvas, 0, 0);
+  ctx.restore();
+
   ctx.restore();
   state = stateStack.pop();
 }
