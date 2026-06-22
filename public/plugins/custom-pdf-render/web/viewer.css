@@ -1,8 +1,8 @@
 /**
  * PDF Viewer Styles
  *
- * Designed to work within a width="100%" height="600px" iframe
- * as embedded in Gogs' repository file view.
+ * Works both as a standalone page and within a width="100%" height="600px"
+ * iframe as embedded in Gogs' repository file view.
  */
 
 /* Reset and base */
@@ -152,14 +152,14 @@ html, body {
   flex-direction: column;
   height: 100%;
   width: 100%;
+  overflow: hidden;
 }
 
 .pdf-viewer-container {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   position: relative;
-  display: flex;
-  justify-content: center;
   background-color: #808080;
 }
 
