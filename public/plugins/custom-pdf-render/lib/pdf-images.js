@@ -195,7 +195,22 @@ function renderInlineImage(ctx, state, imageDict, imageData, resources, doc) {
 
   // DCTDecode inline images: raw JPEG data
   if (filterName === 'DCTDecode') {
-    renderJPEGDataDirect(ctx, imageData, width, height);
+    // Check for non-default /Decode array on inline JPEG
+    var inlineDecode = imageDict.Decode || imageDict.D;
+    if (!Array.isArray(inlineDecode)) { inlineDecode = null; }
+    var inlineNeedsDecode = false;
+    if (inlineDecode) {
+      for (var di = 0; di < inlineDecode.length; di += 2) {
+        var idmin = (typeof inlineDecode[di] === 'number') ? inlineDecode[di] : 0;
+        var idmax = (di + 1 < inlineDecode.length && typeof inlineDecode[di + 1] === 'number') ? inlineDecode[di + 1] : 1;
+        if (idmin !== 0 || idmax !== 1) { inlineNeedsDecode = true; break; }
+      }
+    }
+    if (inlineNeedsDecode) {
+      renderJPEGWithDecode(ctx, imageData, width, height, inlineDecode);
+    } else {
+      renderJPEGDataDirect(ctx, imageData, width, height);
+    }
     return;
   }
 
@@ -244,7 +259,38 @@ function renderJPEGImage(ctx, imgObj, width, height, doc) {
     return;
   }
 
-  renderJPEGDataDirect(ctx, rawBytes, width, height);
+  // Check if there is a /Decode array that requires post-processing.
+  // JPEG images are normally passed straight to the browser decoder,
+  // but a non-default /Decode array (e.g. [1 0] for DeviceGray, or
+  // [1 0 1 0 1 0] for DeviceRGB) means the decoded pixel values must
+  // be linearly remapped — typically to invert colors.
+  var decode = imgObj.Decode || imgObj.D;
+  if (decode && typeof decode === 'object' && decode.isRef && doc) {
+    decode = doc.resolveRef(decode);
+  }
+  if (!Array.isArray(decode)) {
+    decode = null;
+  }
+
+  var needsDecode = false;
+  if (decode) {
+    // Check whether the Decode array differs from the default [0 1 ...].
+    // Default mapping for each component is Dmin=0, Dmax=1.
+    for (var i = 0; i < decode.length; i += 2) {
+      var dmin = (typeof decode[i] === 'number') ? decode[i] : 0;
+      var dmax = (i + 1 < decode.length && typeof decode[i + 1] === 'number') ? decode[i + 1] : 1;
+      if (dmin !== 0 || dmax !== 1) {
+        needsDecode = true;
+        break;
+      }
+    }
+  }
+
+  if (needsDecode) {
+    renderJPEGWithDecode(ctx, rawBytes, width, height, decode);
+  } else {
+    renderJPEGDataDirect(ctx, rawBytes, width, height);
+  }
 }
 
 /**
@@ -315,6 +361,112 @@ function renderJPEGDataDirect(ctx, jpegBytes, width, height) {
       ctx.drawImage(img, 0, 0, width, height);
       ctx.restore();
       URL.revokeObjectURL(url);
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  } catch (e) {
+    drawPlaceholder(ctx);
+  }
+}
+
+/**
+ * Render a JPEG image with a non-default /Decode array applied.
+ *
+ * The browser decodes the JPEG normally, then we read back the pixel data
+ * from an offscreen canvas and apply the /Decode linear mapping to each
+ * component before drawing the result onto the target context.
+ *
+ * The /Decode array contains pairs [Dmin, Dmax] for each color component.
+ * Each decoded sample value v (in 0..255) is remapped to:
+ *   v' = Dmin + (v / 255) * (Dmax - Dmin)
+ * then scaled back to 0..255.
+ *
+ * For example, /Decode [1 0] on a grayscale JPEG inverts every pixel:
+ *   v' = 1 + (v/255) * (0 - 1) = 1 - v/255  =>  mapped to 255 - v.
+ */
+function renderJPEGWithDecode(ctx, jpegBytes, width, height, decode) {
+  if (typeof Image === 'undefined') {
+    drawPlaceholder(ctx);
+    return;
+  }
+
+  try {
+    var blob = new Blob([jpegBytes], { type: 'image/jpeg' });
+    var url = URL.createObjectURL(blob);
+
+    // Capture the current transform before the async load
+    var savedTransform = null;
+    if (typeof ctx.getTransform === 'function') {
+      savedTransform = ctx.getTransform();
+    }
+
+    var img = new Image();
+    img.onload = function() {
+      // Draw the JPEG onto a temporary offscreen canvas to read pixels
+      var tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = width;
+      tmpCanvas.height = height;
+      var tmpCtx = tmpCanvas.getContext('2d');
+      tmpCtx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+
+      // Read back the decoded pixel data
+      var imageData = tmpCtx.getImageData(0, 0, width, height);
+      var pixels = imageData.data; // Uint8ClampedArray [R,G,B,A, R,G,B,A, ...]
+
+      // Determine how many color components the Decode array covers.
+      // Each component has a [Dmin, Dmax] pair.
+      var numDecodeComponents = Math.floor(decode.length / 2);
+
+      // Apply the /Decode mapping to each pixel's color channels.
+      // Pixel layout is RGBA; we remap up to 3 channels (R, G, B).
+      //
+      // When the Decode array has only one component pair (DeviceGray
+      // with e.g. /Decode [1 0]), the browser has already expanded the
+      // grayscale JPEG to RGB (R=G=B), so we apply the same single
+      // mapping to all three channels.
+      //
+      // When it has 3+ pairs (DeviceRGB), each channel gets its own
+      // mapping. CMYK JPEGs decoded by browsers are converted to RGB,
+      // so we cap at 3 channels.
+      for (var p = 0; p < pixels.length; p += 4) {
+        for (var ch = 0; ch < 3; ch++) {
+          // For single-component Decode, reuse decode[0..1] for all channels
+          var di = (numDecodeComponents === 1) ? 0 : ch;
+          var dmin = (di * 2 < decode.length && typeof decode[di * 2] === 'number') ? decode[di * 2] : 0;
+          var dmax = (di * 2 + 1 < decode.length && typeof decode[di * 2 + 1] === 'number') ? decode[di * 2 + 1] : 1;
+          var sample = pixels[p + ch] / 255;
+          var mapped = dmin + sample * (dmax - dmin);
+          pixels[p + ch] = Math.round(clamp(mapped, 0, 1) * 255);
+        }
+        // Alpha channel (index 3) is left untouched
+      }
+
+      // Write the remapped pixels back to the temp canvas
+      tmpCtx.putImageData(imageData, 0, 0);
+
+      // Now draw the corrected image onto the real canvas with the
+      // proper transform
+      ctx.save();
+      if (savedTransform) {
+        ctx.setTransform(
+          savedTransform.a, savedTransform.b,
+          savedTransform.c, savedTransform.d,
+          savedTransform.e, savedTransform.f
+        );
+      }
+
+      ctx.scale(1 / width, -1 / height);
+      ctx.translate(0, -height);
+
+      if ('imageSmoothingEnabled' in ctx) {
+        ctx.imageSmoothingEnabled = true;
+      }
+
+      ctx.drawImage(tmpCanvas, 0, 0, width, height);
+      ctx.restore();
     };
     img.onerror = function() {
       URL.revokeObjectURL(url);
@@ -657,8 +809,8 @@ function decodeImageData(data, width, height, bpc, colorSpace, imgDict, doc) {
 
         // Apply Decode mapping: value = Dmin + (val / maxVal) * (Dmax - Dmin)
         if (decode && csType !== 'Indexed') {
-          var dmin = decode[c * 2] || 0;
-          var dmax = (c * 2 + 1 < decode.length) ? decode[c * 2 + 1] : 1;
+          var dmin = (c * 2 < decode.length && typeof decode[c * 2] === 'number') ? decode[c * 2] : 0;
+          var dmax = (c * 2 + 1 < decode.length && typeof decode[c * 2 + 1] === 'number') ? decode[c * 2 + 1] : 1;
           val = dmin + (val / maxVal) * (dmax - dmin);
         } else if (csType !== 'Indexed') {
           // Normalize to 0..1

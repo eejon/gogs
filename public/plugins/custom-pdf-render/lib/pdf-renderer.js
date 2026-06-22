@@ -816,6 +816,12 @@ function resolveColorSpace(cs, resources, doc) {
     }
   }
 
+  // Handle indirect references: resolve and recurse
+  if (cs && typeof cs === 'object' && cs.isRef && doc) {
+    var resolved = doc.resolveRef(cs);
+    return resolveColorSpace(resolved, resources, doc);
+  }
+
   return { type: 'DeviceGray', numComponents: 1 };
 }
 

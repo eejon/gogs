@@ -1,9 +1,9 @@
 # Test Run Results - Phase 4 Integration
 
-**Date:** 2026-06-18T01:49:14.958Z
+**Date:** 2026-06-22T02:56:22.942Z
 **Total:** 263
-**Passed:** 263
-**Failed:** 0
+**Passed:** 261
+**Failed:** 2
 
 ## Results by Group
 
@@ -257,7 +257,7 @@
 | R08-02 | Render basic path | PASS | - |
 | R08-03 | Render text to mock canvas | PASS | - |
 | R08-04 | Render corpus PDFs page 1 without crash | PASS | - |
-| R08-05 | Render produces fillText calls | PASS | - |
+| R08-05 | Render produces fillText calls | FAIL | Should produce fillText calls for Google Docs PDF |
 | R08-06 | Render with scale factor | PASS | - |
 | R08-07 | q/Q state stack works in rendering | PASS | - |
 | R08-08 | Operator count limit enforcement | PASS | - |
@@ -428,7 +428,7 @@
 | I02-05 | Annotations extractable from all corpus PDFs without crash | PASS | - |
 | I02-06 | links.pdf has URI annotations on at least one page | PASS | - |
 | I02-07 | links.pdf URI annotations have safe schemes | PASS | - |
-| I02-08 | Text-heavy PDFs produce fillText operations | PASS | - |
+| I02-08 | Text-heavy PDFs produce fillText operations | FAIL | 4-google-doc.pdf: 4-google-doc.pdf: should produce fillText calls |
 
 ### I03: Security Audit - Source Code
 
