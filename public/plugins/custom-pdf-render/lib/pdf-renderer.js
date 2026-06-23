@@ -1982,6 +1982,38 @@ function renderFormXObject(ctx, state, stateStack, formObj, parentResources, doc
     return;
   }
 
+  // Check if this form has a Transparency Group and needs offscreen
+  // compositing.  PDF transparency groups must be rendered to an
+  // isolated buffer so that the parent's current alpha (ca / CA)
+  // applies to the composited *result* rather than being overridden by
+  // gs operators inside the group.  Without this, a parent ca=0 (fully
+  // transparent) is ignored when the group's own gs sets ca=1, causing
+  // elements to render as opaque when they should be invisible.
+  var groupDict = formObj.Group;
+  if (groupDict && typeof groupDict === 'object' && groupDict.isRef && doc) {
+    groupDict = doc.resolveRef(groupDict);
+  }
+  var isTransparencyGroup = groupDict && typeof groupDict === 'object' &&
+      (groupDict.S === 'Transparency' || groupDict.S === '/Transparency');
+
+  // Use offscreen rendering when:
+  // 1. The form is a transparency group, AND
+  // 2. The parent alpha is less than 1 (compositing matters), AND
+  // 3. We are in a browser environment with access to document
+  var parentAlpha = Math.min(state.fillAlpha, state.strokeAlpha);
+  if (isTransparencyGroup && parentAlpha < 0.999) {
+    // Fast path: skip entirely when parent alpha is effectively zero.
+    // This avoids creating hundreds of offscreen canvases for forms
+    // that would be invisible anyway (common in attention-head
+    // visualization PDFs where many grid cells have ca=0).
+    if (parentAlpha < 0.001) return;
+
+    if (typeof document !== 'undefined') {
+      renderFormTransparencyGroup(ctx, state, stateStack, formObj, parentResources, doc, formDepth, parentAlpha);
+      return;
+    }
+  }
+
   // Save graphics state
   stateStack.push(state.clone());
   ctx.save();
@@ -2033,14 +2065,20 @@ function renderFormXObject(ctx, state, stateStack, formObj, parentResources, doc
     return;
   }
 
-  // Execute the Form's operators
-  var newState = new GraphicsState();
-  newState.fillColor = state.fillColor;
-  newState.strokeColor = state.strokeColor;
-  newState.fillAlpha = state.fillAlpha;
-  newState.strokeAlpha = state.strokeAlpha;
-  newState.font = state.font;
-  newState.fontSize = state.fontSize;
+  // Execute the Form's operators.
+  // Per the PDF spec (section 4.3.1) the Form XObject inherits the
+  // current graphics state.  Using a fresh GraphicsState() lost every
+  // property not explicitly copied (lineWidth, colorSpace, dash, blend
+  // mode, ...), which caused phantom fills and visible strokes on
+  // elements that relied on inherited zero-width lines or inherited
+  // color spaces.
+  var newState = state.clone();
+  // Reset text object state — text matrices are per-content-stream.
+  newState.textMatrix = [1, 0, 0, 1, 0, 0];
+  newState.textLineMatrix = [1, 0, 0, 1, 0, 0];
+  // SMask is already consumed by the caller; do not re-trigger inside
+  // the form.
+  newState.activeSMask = null;
   var innerStack = [];
 
   try {
@@ -2052,6 +2090,110 @@ function renderFormXObject(ctx, state, stateStack, formObj, parentResources, doc
   }
 
   // Restore graphics state
+  ctx.restore();
+  state = stateStack.pop();
+}
+
+/**
+ * Render a transparency group Form XObject via offscreen compositing.
+ *
+ * The form's content is rendered to a temporary canvas at full internal
+ * opacity, then composited onto the main canvas using the parent's
+ * effective alpha.  This prevents gs operators inside the group from
+ * overriding the parent's alpha and making content visible when it
+ * should be transparent.
+ */
+function renderFormTransparencyGroup(ctx, state, stateStack, formObj, parentResources, doc, formDepth, parentAlpha) {
+  stateStack.push(state.clone());
+  ctx.save();
+
+  var canvasW = ctx.canvas.width;
+  var canvasH = ctx.canvas.height;
+
+  // Create offscreen canvas
+  var offCanvas = document.createElement('canvas');
+  offCanvas.width = canvasW;
+  offCanvas.height = canvasH;
+  var offCtx = offCanvas.getContext('2d');
+
+  // Copy the current transform from the main canvas
+  var curTransform = ctx.getTransform();
+  offCtx.setTransform(curTransform);
+
+  // Apply Form matrix if present
+  var matrix = formObj.Matrix;
+  if (matrix && typeof matrix === 'object' && matrix.isRef && doc) {
+    matrix = doc.resolveRef(matrix);
+  }
+  if (Array.isArray(matrix) && matrix.length >= 6) {
+    offCtx.transform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
+  }
+
+  // Apply BBox clipping if present
+  var bbox = formObj.BBox;
+  if (bbox && typeof bbox === 'object' && bbox.isRef && doc) {
+    bbox = doc.resolveRef(bbox);
+  }
+  if (Array.isArray(bbox) && bbox.length >= 4) {
+    offCtx.beginPath();
+    offCtx.rect(bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]);
+    offCtx.clip();
+  }
+
+  // Resolve Form's resources (fall back to parent resources)
+  var formResources = formObj.Resources;
+  if (formResources && typeof formResources === 'object' && formResources.isRef && doc) {
+    formResources = doc.resolveRef(formResources);
+  }
+  var effectiveResources = mergeResources(formResources, parentResources);
+
+  // Decode and tokenize the Form's content stream
+  var contentData;
+  try {
+    contentData = doc.getStreamData(formObj);
+  } catch (e) {
+    ctx.restore();
+    state = stateStack.pop();
+    return;
+  }
+
+  var ops;
+  try {
+    ops = tokenizeContentStream(contentData);
+  } catch (e) {
+    ctx.restore();
+    state = stateStack.pop();
+    return;
+  }
+
+  // Render the form content at full internal opacity.
+  // Clone the parent state for inherited properties (lineWidth, colors,
+  // dash pattern, etc.) but reset alpha to 1.0 so the group's own gs
+  // operators control opacity within the isolated buffer.
+  var groupState = state.clone();
+  groupState.fillAlpha = 1.0;
+  groupState.strokeAlpha = 1.0;
+  groupState.textMatrix = [1, 0, 0, 1, 0, 0];
+  groupState.textLineMatrix = [1, 0, 0, 1, 0, 0];
+  groupState.activeSMask = null;
+  var innerStack = [];
+
+  try {
+    executeOperators(offCtx, ops, groupState, innerStack, effectiveResources, doc, formDepth + 1);
+  } catch (e) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('Transparency group render error: ' + e.message);
+    }
+  }
+
+  // Composite the offscreen result onto the main canvas using the
+  // parent's effective alpha.
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = parentAlpha;
+  ctx.drawImage(offCanvas, 0, 0);
+  ctx.restore();
+
   ctx.restore();
   state = stateStack.pop();
 }
@@ -2124,15 +2266,15 @@ function renderFormWithSMask(ctx, state, stateStack, formObj, parentResources, d
     ctx.restore(); state = stateStack.pop(); return;
   }
 
-  // Render content at full opacity — SMask controls the final alpha
-  var contentState = new GraphicsState();
-  contentState.fillColor = state.fillColor;
-  contentState.strokeColor = state.strokeColor;
+  // Render content at full opacity — SMask controls the final alpha.
+  // Clone the full graphics state so that inherited properties like
+  // lineWidth, colorSpace, dash pattern, etc. are preserved.
+  var contentState = state.clone();
   contentState.fillAlpha = 1.0;
   contentState.strokeAlpha = 1.0;
-  contentState.font = state.font;
-  contentState.fontSize = state.fontSize;
   contentState.activeSMask = null;
+  contentState.textMatrix = [1, 0, 0, 1, 0, 0];
+  contentState.textLineMatrix = [1, 0, 0, 1, 0, 0];
   var contentStack = [];
 
   try {
